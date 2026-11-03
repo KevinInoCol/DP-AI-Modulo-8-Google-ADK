@@ -3,7 +3,7 @@ Agente básico con Google ADK: prompt + model_config + histórico de conversaci�
 
 - Modelo:      Gemini (API Key o Vertex AI, según GEMINI_AUTH_MODE)   → model_config/
 - Prompt:      prompt/system_prompt.yaml (+ fecha/hora en cada turno)  → prompt/
-- Histórico:   sesiones de ADK en PostgreSQL (DatabaseSessionService) → chat_history/
+- Histórico:   sesiones de ADK en Cloud SQL multitenant (RLS)           → chat_history/
 
 Sin tools, guardrails ni observabilidad: es la base mínima para empezar.
 
@@ -38,7 +38,7 @@ from google.adk.apps import App
 from google.adk.runners import Runner
 from google.genai import types
 
-from .chat_history import obtener_historial, preparar_esquema, session_service
+from .chat_history import obtener_historial, session_service
 from .prompt import load_system_prompt
 
 # ============================================
@@ -106,7 +106,6 @@ def _texto(content) -> str:
 
 async def chat_con_agente(mensaje_usuario: str, session_id: str, user_id: str = "consola") -> str:
     """Ejecuta un turno del agente y devuelve el texto de la respuesta final."""
-    await preparar_esquema()
     nuevo = types.Content(role="user", parts=[types.Part(text=mensaje_usuario)])
 
     respuesta = ""
@@ -127,7 +126,7 @@ async def main():
     print("🤖 Agente básico (Google ADK)")
     print("=" * 60)
     print(f"🧠 Modelo: {MODELO} ({MODO_GEMINI})")
-    print("💾 Historial: sesiones de ADK en PostgreSQL")
+    print("💾 Historial: Cloud SQL multitenant (tenant agente_basico)")
     print("\n  1. Nueva conversación\n  2. Continuar sesión existente (pegar UUID)")
 
     opcion = (await asyncio.to_thread(input, "\nElige (1/2): ")).strip()

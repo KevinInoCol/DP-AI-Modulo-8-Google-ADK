@@ -44,7 +44,7 @@ load_dotenv(find_dotenv())
 
 
 from .agente_sec_langfuse import chat_con_agente, runner_para, MODELO, _texto
-from .chat_history import preparar_esquema, session_service
+from .chat_history import session_service
 
 # ============================================
 # CONFIGURACIÓN
@@ -124,7 +124,6 @@ async def historial(session_id: str):
     except ValueError:
         raise HTTPException(status_code=400, detail="session_id no es un UUID válido.")
 
-    await preparar_esquema()
     session = await session_service.get_session(
         app_name=APP_NAME, user_id=USER_ID, session_id=session_id
     )
@@ -162,7 +161,7 @@ if __name__ == "__main__":
     print("🤖 Agente: TramiBot - Trámites del Municipio de Girardota (RAG + Memoria)")
     print(f"🧠 Modelo: {MODELO}")
     print("🔧 Tools: buscar_tramites, obtener_fecha_hora")
-    print("💾 Historial: sesiones de ADK en PostgreSQL")
+    print("💾 Historial: Cloud SQL multitenant (tenant tramibot)")
     print(f"🌐 API: http://127.0.0.1:{FRONTEND_PORT}/api")
     print(f"🖥️  Build servido: {DIST_DIR if os.path.isdir(DIST_DIR) else 'no — usa npm run dev en ../Frontend_React'}")
     print("=" * 60)

@@ -1,19 +1,28 @@
 """
-Backend de persistencia de conversación (Histórico) — PostgreSQL con ADK.
+Histórico de conversación — sesiones de ADK en Cloud SQL (Postgres 18), MULTITENANT.
 
-En la versión LangChain el historial vivía en una tabla `chat_history`
-(PostgresChatMessageHistory) y el agente lo cargaba a mano en cada turno.
-En ADK la memoria del hilo es la SESIÓN: el Runner la lee y la guarda solo,
-a través de un SessionService. Aquí se usa DatabaseSessionService sobre el
-mismo Postgres (Supabase). Doc: https://adk.dev/sessions/session/
+En ADK la memoria del hilo es la SESIÓN: el Runner la lee y la guarda solo a
+través de un SessionService. Aquí se usa DatabaseSessionService sobre la base
+compartida `adk_historico` (esquema public), la misma para todos los agentes.
+Doc: https://adk.dev/sessions/session/
 
-ADK crea sus propias tablas (sessions, events, app_states, user_states…).
-Para que no se mezclen con otras tablas del proyecto viven en un ESQUEMA
-propio (DB_SCHEMA, por defecto `tramibot_adk`), que se crea si no existe.
+Multitenant con RLS (ver infra/cloud_sql_historico/historico_multitenant.py):
+  - Este agente se conecta con SU usuario de Postgres, DB_USER = "tramibot".
+  - Cada fila de sessions/events/app_states/user_states lleva tenant_id, que
+    Postgres rellena con current_user; la policy solo deja ver y escribir las
+    filas de ese tenant. El código no tiene que filtrar nada.
+  - Las tablas ya existen (las crea `historico_multitenant.py init`): este
+    usuario no puede crear tablas, y ADK solo comprueba que estén.
 
-Requisitos: driver asíncrono asyncpg (pip install 'google-adk[db]' asyncpg).
-Con Supabase usa el Session pooler (puerto 5432): el Transaction pooler (6543)
-no admite las sentencias preparadas de asyncpg.
+Conexión:
+  - Local:      Cloud SQL Auth Proxy → DB_HOST=127.0.0.1, DB_PORT=5432
+  - Cloud Run:  --add-cloudsql-instances → DB_HOST=/cloudsql/<proyecto>:<región>:adk-historico
+
+Las variables DB_* se leen del .env de ESTE paquete antes que del entorno:
+`adk web adk_apps` carga todos los agentes en un mismo proceso y load_dotenv no
+sobrescribe, así que con os.getenv el DB_USER del primer agente cargado se
+usaría para todos (y escribiría en el tenant equivocado). En Cloud Run no hay
+.env y se usa el entorno del servicio.
 
 Esta carpeta es el ÚNICO lugar que conoce el backend de memoria.
 
@@ -21,35 +30,35 @@ Autor: Ing. Kevin Inofuente Colque - DataPath
 """
 
 import os
-import re
+from pathlib import Path
 
-from dotenv import load_dotenv, find_dotenv
+from dotenv import dotenv_values
 from google.adk.sessions import DatabaseSessionService
-from sqlalchemy import text
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import create_async_engine
-
-load_dotenv(find_dotenv())
 
 # ============================================
 # 1. CONFIGURACIÓN DE BASE DE DATOS
 # ============================================
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = int(os.getenv("DB_PORT", "5432"))
-DB_NAME = os.getenv("DB_NAME", "postgres")
-DB_SCHEMA = os.getenv("DB_SCHEMA", "tramibot_adk")
+_ENV_PAQUETE = Path(__file__).resolve().parent.parent / ".env"
+_cfg = {**os.environ, **{k: v for k, v in dotenv_values(_ENV_PAQUETE).items() if v is not None}}
+
+DB_USER = _cfg.get("DB_USER")          # = tenant_id de este agente
+DB_PASSWORD = _cfg.get("DB_PASSWORD")
+DB_HOST = _cfg.get("DB_HOST", "127.0.0.1")
+DB_PORT = int(_cfg.get("DB_PORT", "5432"))
+DB_NAME = _cfg.get("DB_NAME", "adk_historico")
 
 if not all([DB_USER, DB_PASSWORD, DB_HOST]):
     raise ValueError(
-        "❌ Faltan variables de base de datos en .env\n"
-        "Requeridas: DB_USER, DB_PASSWORD, DB_HOST"
+        "❌ Faltan variables de base de datos en el .env del agente\n"
+        "Requeridas: DB_USER, DB_PASSWORD, DB_HOST\n"
+        "Créalas con: python infra/cloud_sql_historico/historico_multitenant.py tenant tramibot --env-file <.env>"
     )
-if not re.fullmatch(r"[a-z_][a-z0-9_]*", DB_SCHEMA):
-    raise ValueError(f"❌ DB_SCHEMA={DB_SCHEMA!r} debe ser snake_case (a-z, 0-9, _)")
+if DB_USER != "tramibot":
+    print(f"⚠️  DB_USER={DB_USER!r}: este agente debería usar el tenant 'tramibot'")
 
-# URL.create escapa la contraseña (no hace falta quote_plus)
+# URL.create escapa la contraseña; si DB_HOST es una carpeta (/cloudsql/...) asyncpg usa el socket
 DATABASE_URL = URL.create(
     "postgresql+asyncpg",
     username=DB_USER,
@@ -59,28 +68,6 @@ DATABASE_URL = URL.create(
     database=DB_NAME,
 )
 
-print(f"🔌 Sesiones ADK en Postgres: {DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME} (esquema {DB_SCHEMA})")
-
-# Motor propio para fijar el search_path al esquema del agente en cada conexión
-_engine = create_async_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    connect_args={"server_settings": {"search_path": DB_SCHEMA}},
-)
+_engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
 
 session_service = DatabaseSessionService(db_engine=_engine)
-
-_esquema_listo = False
-
-
-# ============================================
-# 2. CREAR ESQUEMA (idempotente)
-# ============================================
-async def preparar_esquema() -> None:
-    """Crea el esquema del agente si no existe. Las tablas las crea ADK."""
-    global _esquema_listo
-    if _esquema_listo:
-        return
-    async with _engine.begin() as conn:
-        await conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{DB_SCHEMA}"'))
-    _esquema_listo = True

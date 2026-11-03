@@ -302,7 +302,7 @@ if __name__ == "__main__":
     print(f"🤖 Agente: TramiBot - Trámites del Municipio de Girardota (RAG + Memoria)")
     print(f"🧠 Modelo: {MODELO}")
     print(f"🔧 Tools: buscar_tramites, obtener_fecha_hora, transferir_a_humano")
-    print(f"💾 Historial: sesiones de ADK en PostgreSQL")
+    print("💾 Historial: Cloud SQL multitenant (tenant tramibot)")
     print(f"🏷️  Etiqueta bot (handoff): {BOT_LABEL or 'ninguna'}")
     print(f"🚫 No responde si tiene tag: {TAG_IA_OFF}")
     print("=" * 60)

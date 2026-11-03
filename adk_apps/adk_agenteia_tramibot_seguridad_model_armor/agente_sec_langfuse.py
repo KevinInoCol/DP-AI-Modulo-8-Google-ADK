@@ -4,7 +4,7 @@ Agente IA Completo con Google ADK: Base de Conocimiento + Histórico + Langfuse 
 - Tool 1:          Base de Conocimiento (RAG con Qdrant)
 - Tool 2:          Fecha y hora actual
 - Tool 3:          Transferir a humano (solo en el canal Chatwoot)
-- Histórico:       Sesiones de ADK en PostgreSQL (DatabaseSessionService)
+- Histórico:       Sesiones de ADK en Cloud SQL multitenant con RLS (DatabaseSessionService)
 - Observabilidad:  Langfuse vía OpenTelemetry (trazas, tokens, latencia) + LLM-as-a-Judge
 - Seguridad:       ModelArmorPlugin (plugin oficial de ADK) revisa la entrada y la salida
 
@@ -73,8 +73,8 @@ from .guardrails import (
 # Evaluador LLM-as-a-Judge (módulo evaluation/)
 from .evaluation.llm_judge import evaluar_con_llm_judge
 
-# Histórico: SessionService de ADK sobre PostgreSQL (chat_history/)
-from .chat_history import preparar_esquema, session_service
+# Histórico: SessionService de ADK sobre Cloud SQL multitenant (chat_history/)
+from .chat_history import session_service
 
 # System prompt desde YAML (prompt/)
 from .prompt import load_system_prompt
@@ -257,7 +257,6 @@ async def chat_con_agente(
     Returns:
         {"respuesta": str, "bloqueado": bool, "motivo": "" | "entrada" | "salida"}
     """
-    await preparar_esquema()
     runner = runner_para(canal)
     user_id = user_id or canal
     nuevo = types.Content(role="user", parts=[types.Part(text=mensaje_usuario)])
@@ -321,7 +320,7 @@ async def main():
     print("🔧 Tools disponibles:")
     for t in TOOLS_BASE:
         print(f"   - {t.__name__}")
-    print("💾 Historial: sesiones de ADK en PostgreSQL")
+    print("💾 Historial: Cloud SQL multitenant (tenant tramibot)")
 
     print("\nOpciones de sesión:")
     print("  1. Nueva conversación")

@@ -14,7 +14,6 @@ Credenciales de Google Cloud: SOLO ADC, nunca una llave JSON de cuenta de servic
   - Local:      gcloud auth application-default login
                 gcloud auth application-default set-quota-project <PROYECTO>
   - Cloud Run:  la cuenta de servicio del servicio (con sus roles), sin archivo.
-Si alguien deja GOOGLE_APPLICATION_CREDENTIALS en el .env, se ignora con un aviso.
 
 ADK y google-genai leen GOOGLE_GENAI_USE_ENTERPRISE (antes GOOGLE_GENAI_USE_VERTEXAI)
 para decidir; aquí se fijan ambas a partir de GEMINI_AUTH_MODE para que el
@@ -54,19 +53,6 @@ def load_model_config(path: str = _CONFIG_PATH) -> dict:
     return cfg
 
 
-def _descartar_llave_json() -> None:
-    """
-    No usamos llaves JSON de cuentas de servicio (se pueden filtrar y no caducan).
-    Si GOOGLE_APPLICATION_CREDENTIALS sigue definida, se quita del entorno para que
-    las librerías de Google usen ADC (gcloud en local, la SA del servicio en Cloud Run).
-    """
-    if os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None):
-        print(
-            "⚠️  GOOGLE_APPLICATION_CREDENTIALS se ignora: el proyecto ya no usa llaves JSON.\n"
-            "   Bórrala del .env y usa: gcloud auth application-default login"
-        )
-
-
 def verificar_adc() -> None:
     """
     Comprueba que hay Application Default Credentials (las necesitan Vertex AI y
@@ -96,8 +82,6 @@ def configurar_autenticacion_gemini() -> str:
     Returns:
         El modo activo: "api_key" o "vertex".
     """
-    _descartar_llave_json()
-
     modo = os.getenv("GEMINI_AUTH_MODE", "api_key").strip().lower()
     if modo not in MODOS_VALIDOS:
         raise ValueError(

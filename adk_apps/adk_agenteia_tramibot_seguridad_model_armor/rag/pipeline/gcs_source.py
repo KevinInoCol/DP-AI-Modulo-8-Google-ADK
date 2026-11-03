@@ -6,7 +6,6 @@ Lista y descarga PDFs de un bucket de GCS. Alimenta el mismo orquestador (g_).
 
 Auth: credenciales de GCP (ADC). NO usa la GOOGLE_API_KEY de Gemini — esa es de la
 API de Gemini, no de GCS. Opciones:
-  - Service account:  export GOOGLE_APPLICATION_CREDENTIALS=/ruta/key.json
   - Dev local:        gcloud auth application-default login
   - En Cloud Run:     la SA del servicio (Workload Identity) · sin key
 Permiso mínimo sobre el bucket: roles/storage.objectViewer.
@@ -29,9 +28,8 @@ def _client():
         return storage.Client()
     except Exception as exc:  # noqa: BLE001 · típicamente DefaultCredentialsError
         raise RuntimeError(
-            "No hay credenciales de GCP. Configura una service account "
-            "(GOOGLE_APPLICATION_CREDENTIALS=/ruta/key.json) o corre "
-            "'gcloud auth application-default login'."
+            "No hay credenciales de GCP (ADC). En local corre "
+            "'gcloud auth application-default login'; en Cloud Run se usa la SA del servicio."
         ) from exc
 
 

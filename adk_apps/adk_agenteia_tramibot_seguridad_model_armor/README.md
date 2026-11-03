@@ -45,7 +45,7 @@ Modulo-8-Sesion-1-Google-ADK/
         ├── prompt/                 # system_prompt.yaml (alternativa al de Langfuse)
         ├── tools/                  # buscar_tramites, obtener_fecha_hora, transferir_a_humano, buscar_internet (off)
         ├── guardrails/             # ModelArmorPlugin + filtro de turnos bloqueados
-        ├── chat_history/           # DatabaseSessionService sobre Postgres (esquema DB_SCHEMA)
+        ├── chat_history/           # DatabaseSessionService sobre Cloud SQL multitenant (tenant tramibot)
         ├── observability/          # Langfuse + instrumentación OTel de ADK
         ├── evaluation/             # LLM-as-a-Judge con Gemini → scores en Langfuse
         ├── message_buffer/         # Debounce con Redis
@@ -83,11 +83,11 @@ En modo `vertex` las credenciales son Application Default Credentials (ADC). **N
 
 ### Model Armor
 
-Usa la misma plantilla de la versión LangChain (`MODEL_ARMOR_PROJECT`, `MODEL_ARMOR_LOCATION`, `MODEL_ARMOR_TEMPLATE`). Las credenciales también son ADC: tu usuario (local) o la cuenta de servicio de Cloud Run necesitan **Model Armor User** (`roles/modelarmor.user`). Como el plugin es fail-closed, sin ADC bloquearía todos los turnos, así que `crear_plugin_model_armor()` comprueba las credenciales al arrancar. Si `GOOGLE_APPLICATION_CREDENTIALS` sigue en el `.env`, se ignora con un aviso.
+Usa la misma plantilla de la versión LangChain (`MODEL_ARMOR_PROJECT`, `MODEL_ARMOR_LOCATION`, `MODEL_ARMOR_TEMPLATE`). Las credenciales también son ADC: tu usuario (local) o la cuenta de servicio de Cloud Run necesitan **Model Armor User** (`roles/modelarmor.user`). Como el plugin es fail-closed, sin ADC bloquearía todos los turnos, así que `crear_plugin_model_armor()` comprueba las credenciales al arrancar.
 
-### Memoria (Postgres)
+### Memoria (Cloud SQL multitenant)
 
-ADK crea sus tablas (`sessions`, `events`, `app_states`, `user_states`) en el esquema `DB_SCHEMA` (por defecto `tramibot_adk`), que se crea solo. Con Supabase usa el **Session pooler (puerto 5432)**; el Transaction pooler (6543) no admite las sentencias preparadas de asyncpg.
+El histórico vive en la base compartida `adk_historico` (Cloud SQL, Postgres 18), la misma que usan los demás agentes de `adk_apps/`. TramiBot se conecta con su propio usuario `tramibot`, y la RLS solo le deja ver y escribir sus filas. Las tablas, la RLS y el usuario se crean con [`infra/cloud_sql_historico`](../../infra/cloud_sql_historico/README.md). En local hay que abrir antes el proxy: `cloud-sql-proxy datapath-kevin-inofuente:us-central1:adk-historico --port 5432`.
 
 ---
 
