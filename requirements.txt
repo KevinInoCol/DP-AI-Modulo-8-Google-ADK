@@ -1,0 +1,24 @@
+# ============================================
+# Requirements GENERAL del módulo — Google ADK
+# Instala el ADK (CLI: adk web / adk run) y las dependencias de TODOS los
+# agentes de adk_apps/, para probarlos juntos con `adk web adk_apps`.
+#
+#   python -m venv .venv && source .venv/bin/activate
+#   pip install -r requirements.txt
+#
+# Cada agente mantiene su propio requirements.txt (se despliega solo).
+# Al crear un agente nuevo, agrega aquí su línea -r.
+# Las rutas -r son relativas a este archivo.
+#
+# Autor: Ing. Kevin Inofuente Colque - DataPath
+# ============================================
+
+# ADK + Gemini (base común; trae el CLI `adk`)
+google-adk[gcp,db]>=2.13.0
+google-genai
+python-dotenv
+PyYAML
+
+# Agentes
+-r adk_apps/agente_basico/requirements.txt
+-r adk_apps/adk_agenteia_tramibot_seguridad_model_armor/requirements.txt

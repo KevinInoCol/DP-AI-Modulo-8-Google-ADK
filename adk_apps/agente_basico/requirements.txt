@@ -1,0 +1,12 @@
+# ============================================
+# Requirements - Agente básico con Google ADK
+# Autor: Ing. Kevin Inofuente Colque - DataPath
+# ============================================
+
+# [db] trae SQLAlchemy async (DatabaseSessionService)
+google-adk[db]>=2.13.0
+google-genai
+asyncpg          # Driver async de PostgreSQL que exige DatabaseSessionService
+
+PyYAML           # model_config/model.yaml, prompt/system_prompt.yaml
+python-dotenv
