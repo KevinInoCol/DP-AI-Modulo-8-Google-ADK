@@ -1,0 +1,71 @@
+# ============================================
+# Requirements - TramiBot con Google ADK (Agent Development Kit)
+# Autor: Ing. Kevin Inofuente Colque - DataPath
+# ============================================
+
+# Config desacoplada (model_config/model.yaml, prompt/system_prompt.yaml)
+PyYAML
+
+# ============================================
+# GOOGLE ADK + GEMINI
+# ============================================
+# [gcp] trae google-cloud-modelarmor (plugin oficial de Model Armor)
+# [db]  trae SQLAlchemy async (DatabaseSessionService)
+google-adk[gcp,db]>=2.13.0
+google-genai              # Cliente de Gemini (también lo usa el LLM-as-a-Judge)
+
+# ============================================
+# HISTÓRICO DE CONVERSACIÓN (sesiones de ADK en PostgreSQL)
+# ============================================
+asyncpg                   # Driver async de PostgreSQL que exige DatabaseSessionService
+
+# ============================================
+# BASE DE CONOCIMIENTO (RAG con Qdrant)
+# ============================================
+# La colección existente usa embeddings OpenAI text-embedding-ada-002 (1536 dims):
+# la consulta debe vectorizarse con el mismo modelo.
+qdrant-client
+openai
+
+# ============================================
+# PIPELINE DE INGESTA RAG (rag/pipeline/) — igual que la versión LangChain
+# ============================================
+pypdf>=3.0.0
+PyMuPDF                   # extracción nativa + OCR
+pymupdf4llm               # PDF → Markdown para chunking estructural
+llama-index-core          # MarkdownNodeParser + SentenceSplitter (e_chunking)
+numpy
+# OCR español requiere el binario Tesseract del sistema + idiomas:
+#   macOS:  brew install tesseract tesseract-lang
+#   Linux:  apt-get install tesseract-ocr tesseract-ocr-spa
+# --- Fuentes de documentos OPCIONALES (rag/pipeline/*_source.py) ---
+# google-cloud-storage    # Fuente GCS (gcs_source.py)
+# msal                    # Login device-code Microsoft Graph (graph_source.py)
+
+# ============================================
+# TOOLS
+# ============================================
+tavily-python             # Búsqueda en internet (tool desactivada por defecto)
+requests                  # API de Chatwoot (handoff y envío de mensajes)
+
+# ============================================
+# WEB SERVER (Chatwoot + Frontend React)
+# ============================================
+fastapi
+uvicorn
+
+# ============================================
+# BUFFER DE MENSAJES (Redis)
+# ============================================
+redis>=5.0
+
+# ============================================
+# UTILIDADES
+# ============================================
+python-dotenv
+
+# ============================================
+# OBSERVABILIDAD (Langfuse vía OpenTelemetry)
+# ============================================
+langfuse>=4.0.0,<5        # <5: la v5 eliminó set_current_trace_io
+openinference-instrumentation-google-adk   # Instrumentación OTel de ADK para Langfuse

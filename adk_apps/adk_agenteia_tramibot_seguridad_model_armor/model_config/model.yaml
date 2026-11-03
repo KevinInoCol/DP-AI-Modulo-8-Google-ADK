@@ -1,0 +1,19 @@
+meta:
+  name: tramibot-llm-adk
+  version: 2.0.0
+  description: Configuración del LLM (Gemini) para el agente TramiBot construido con Google ADK.
+  updated_at: 2026-11-02
+  author: Ing. Kevin Inofuente Colque - DataPath
+
+llm:
+  provider: gemini
+  model: gemini-3.5-flash   # se puede sobrescribir con GEMINI_MODEL en el .env
+  temperature: 0.4
+  # max_output_tokens, top_p — comentados hasta que se necesiten
+
+# Cómo se autentica Gemini (API Key de AI Studio o Vertex AI) NO vive aquí:
+# se elige con GEMINI_AUTH_MODE en el .env (ver model_config/__init__.py).
+
+judge:
+  model: gemini-3.5-flash   # LLM-as-a-Judge (evaluation/llm_judge.py); JUDGE_MODEL en el .env
+  temperature: 0
