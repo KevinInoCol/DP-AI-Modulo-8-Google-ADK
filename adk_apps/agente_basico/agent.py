@@ -51,6 +51,12 @@ AGENT_TIMEZONE = os.getenv("AGENT_TIMEZONE", "America/Lima")
 SYSTEM_PROMPT = load_system_prompt()
 
 
+def _thinking_config() -> types.ThinkingConfig | None:
+    """ThinkingConfig de Gemini 3+ a partir de model.yaml (None = valor por defecto del modelo)."""
+    nivel = _model_cfg["llm"].get("thinking_level")
+    return types.ThinkingConfig(thinking_level=nivel.upper()) if nivel else None
+
+
 # ============================================
 # 2. INSTRUCCIÓN (InstructionProvider)
 # ============================================
@@ -77,6 +83,8 @@ root_agent = LlmAgent(
     instruction=instruccion,
     generate_content_config=types.GenerateContentConfig(
         temperature=_model_cfg["llm"]["temperature"],
+        # Nivel de razonamiento (model_config/model.yaml → thinking_level)
+        thinking_config=_thinking_config(),
     ),
 )
 

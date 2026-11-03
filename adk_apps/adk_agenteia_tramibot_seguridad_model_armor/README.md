@@ -50,7 +50,6 @@ Modulo-8-Sesion-1-Google-ADK/
         ├── evaluation/             # LLM-as-a-Judge con Gemini → scores en Langfuse
         ├── message_buffer/         # Debounce con Redis
         ├── rag/                    # Pipeline de ingesta a Qdrant + documents/
-        ├── credenciales/           # Llave JSON de la cuenta de servicio (en .gitignore)
         ├── requirements.txt
         └── .env / .env.example
 ```
@@ -80,11 +79,11 @@ GOOGLE_CLOUD_PROJECT=tu-proyecto
 GOOGLE_CLOUD_LOCATION=global  # los Gemini más nuevos suelen publicarse en "global"
 ```
 
-En modo `vertex` las credenciales son Application Default Credentials: la cuenta de servicio de `GOOGLE_APPLICATION_CREDENTIALS` (necesita el rol **Vertex AI User**) o `gcloud auth application-default login`. Internamente se fijan `GOOGLE_GENAI_USE_ENTERPRISE` / `GOOGLE_GENAI_USE_VERTEXAI`, que son las variables que leen ADK y google-genai.
+En modo `vertex` las credenciales son Application Default Credentials (ADC). **No se usan llaves JSON de cuentas de servicio**: en local se inicia sesión con `gcloud auth application-default login` (y `gcloud auth application-default set-quota-project <PROYECTO>`), y en Cloud Run se usa la cuenta de servicio del servicio. Tu usuario o esa SA necesitan el rol **Vertex AI User** (`roles/aiplatform.user`). Internamente se fijan `GOOGLE_GENAI_USE_ENTERPRISE` / `GOOGLE_GENAI_USE_VERTEXAI`, que son las variables que leen ADK y google-genai.
 
 ### Model Armor
 
-Usa la misma plantilla de la versión LangChain (`MODEL_ARMOR_PROJECT`, `MODEL_ARMOR_LOCATION`, `MODEL_ARMOR_TEMPLATE`). La cuenta de servicio necesita **Model Armor User** (`roles/modelarmor.user`). `GOOGLE_APPLICATION_CREDENTIALS` puede ser una ruta relativa a la raíz del proyecto (`credenciales/xxx.json`, dentro de `adk_apps/adk_agenteia_tramibot_seguridad_model_armor/`).
+Usa la misma plantilla de la versión LangChain (`MODEL_ARMOR_PROJECT`, `MODEL_ARMOR_LOCATION`, `MODEL_ARMOR_TEMPLATE`). Las credenciales también son ADC: tu usuario (local) o la cuenta de servicio de Cloud Run necesitan **Model Armor User** (`roles/modelarmor.user`). Como el plugin es fail-closed, sin ADC bloquearía todos los turnos, así que `crear_plugin_model_armor()` comprueba las credenciales al arrancar. Si `GOOGLE_APPLICATION_CREDENTIALS` sigue en el `.env`, se ignora con un aviso.
 
 ### Memoria (Postgres)
 

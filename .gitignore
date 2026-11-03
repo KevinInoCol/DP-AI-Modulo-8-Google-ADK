@@ -52,3 +52,6 @@ htmlcov/
 
 # Llaves de cuentas de servicio (Model Armor)
 credenciales/
+
+# Sesiones locales de adk web / adk run
+.adk/

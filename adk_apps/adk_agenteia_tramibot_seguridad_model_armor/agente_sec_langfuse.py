@@ -88,6 +88,13 @@ AGENT_TIMEZONE = os.getenv("AGENT_TIMEZONE", "America/Lima")
 PROMPT_SOURCE = os.getenv("PROMPT_SOURCE", "langfuse").strip().lower()
 LANGFUSE_PROMPT_NAME = os.getenv("LANGFUSE_PROMPT_NAME", "Prompt-del-Agente-Tramites-Girardota")
 
+
+def _thinking_config() -> types.ThinkingConfig | None:
+    """ThinkingConfig de Gemini 3+ a partir de model.yaml (None = valor por defecto del modelo)."""
+    nivel = _model_cfg["llm"].get("thinking_level")
+    return types.ThinkingConfig(thinking_level=nivel.upper()) if nivel else None
+
+
 # ============================================
 # 2. LISTA DE TOOLS DISPONIBLES
 # ============================================
@@ -181,6 +188,8 @@ def crear_agente(con_handoff: bool) -> LlmAgent:
         tools=tools,
         generate_content_config=types.GenerateContentConfig(
             temperature=_model_cfg["llm"]["temperature"],
+            # Nivel de razonamiento (model_config/model.yaml → thinking_level)
+            thinking_config=_thinking_config(),
         ),
         # No reenviar a Gemini turnos que Model Armor ya bloqueó (ver guardrails/)
         before_model_callback=quitar_turnos_bloqueados,

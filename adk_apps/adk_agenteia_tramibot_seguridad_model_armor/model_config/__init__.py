@@ -8,9 +8,13 @@ También resuelve CÓMO se conecta Gemini, según GEMINI_AUTH_MODE del .env:
 
   GEMINI_AUTH_MODE=api_key  → Gemini API (Google AI Studio) con GOOGLE_API_KEY
   GEMINI_AUTH_MODE=vertex   → Vertex AI con GOOGLE_CLOUD_PROJECT + GOOGLE_CLOUD_LOCATION
-                              y Application Default Credentials
-                              (gcloud auth application-default login, o la
-                              cuenta de servicio de GOOGLE_APPLICATION_CREDENTIALS)
+                              y Application Default Credentials (ADC)
+
+Credenciales de Google Cloud: SOLO ADC, nunca una llave JSON de cuenta de servicio.
+  - Local:      gcloud auth application-default login
+                gcloud auth application-default set-quota-project <PROYECTO>
+  - Cloud Run:  la cuenta de servicio del servicio (con sus roles), sin archivo.
+Si alguien deja GOOGLE_APPLICATION_CREDENTIALS en el .env, se ignora con un aviso.
 
 ADK y google-genai leen GOOGLE_GENAI_USE_ENTERPRISE (antes GOOGLE_GENAI_USE_VERTEXAI)
 para decidir; aquí se fijan ambas a partir de GEMINI_AUTH_MODE para que el
@@ -29,6 +33,7 @@ load_dotenv(find_dotenv())
 _CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model.yaml")
 
 MODOS_VALIDOS = ("api_key", "vertex")
+NIVELES_THINKING = ("minimal", "low", "medium", "high")
 
 
 def load_model_config(path: str = _CONFIG_PATH) -> dict:
@@ -37,21 +42,48 @@ def load_model_config(path: str = _CONFIG_PATH) -> dict:
         cfg = yaml.safe_load(f)
     if os.getenv("GEMINI_MODEL"):
         cfg["llm"]["model"] = os.getenv("GEMINI_MODEL").strip()
+    if os.getenv("GEMINI_THINKING_LEVEL"):
+        cfg["llm"]["thinking_level"] = os.getenv("GEMINI_THINKING_LEVEL").strip()
+    nivel = str(cfg["llm"].get("thinking_level", "")).lower()
+    if nivel and nivel not in NIVELES_THINKING:
+        raise ValueError(
+            f"❌ thinking_level={nivel!r} no es válido. Usa: {' | '.join(NIVELES_THINKING)}"
+        )
     if os.getenv("JUDGE_MODEL"):
         cfg["judge"]["model"] = os.getenv("JUDGE_MODEL").strip()
     return cfg
 
 
-def _resolver_ruta_credenciales() -> None:
+def _descartar_llave_json() -> None:
     """
-    Convierte GOOGLE_APPLICATION_CREDENTIALS en ruta absoluta respecto a la raíz
-    del proyecto. Así credenciales/xxx.json funciona aunque el script se lance
-    desde otra carpeta (por ejemplo `adk web adk_apps`).
+    No usamos llaves JSON de cuentas de servicio (se pueden filtrar y no caducan).
+    Si GOOGLE_APPLICATION_CREDENTIALS sigue definida, se quita del entorno para que
+    las librerías de Google usen ADC (gcloud en local, la SA del servicio en Cloud Run).
     """
-    ruta = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
-    if ruta and not os.path.isabs(ruta):
-        raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.join(raiz, ruta)
+    if os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None):
+        print(
+            "⚠️  GOOGLE_APPLICATION_CREDENTIALS se ignora: el proyecto ya no usa llaves JSON.\n"
+            "   Bórrala del .env y usa: gcloud auth application-default login"
+        )
+
+
+def verificar_adc() -> None:
+    """
+    Comprueba que hay Application Default Credentials (las necesitan Vertex AI y
+    Model Armor). Falla con un mensaje claro en vez de un error críptico al primer turno.
+    """
+    import google.auth
+    from google.auth.exceptions import DefaultCredentialsError
+
+    try:
+        google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    except DefaultCredentialsError as e:
+        raise RuntimeError(
+            "❌ No hay credenciales de Google Cloud (ADC).\n"
+            "   En local:  gcloud auth application-default login\n"
+            "              gcloud auth application-default set-quota-project <PROYECTO>\n"
+            "   En Cloud Run se usa la cuenta de servicio del servicio."
+        ) from e
 
 
 def configurar_autenticacion_gemini() -> str:
@@ -64,7 +96,7 @@ def configurar_autenticacion_gemini() -> str:
     Returns:
         El modo activo: "api_key" o "vertex".
     """
-    _resolver_ruta_credenciales()
+    _descartar_llave_json()
 
     modo = os.getenv("GEMINI_AUTH_MODE", "api_key").strip().lower()
     if modo not in MODOS_VALIDOS:
@@ -89,6 +121,7 @@ def configurar_autenticacion_gemini() -> str:
             raise ValueError(
                 f"❌ GEMINI_AUTH_MODE=vertex pero faltan en el .env: {', '.join(faltan)}"
             )
+        verificar_adc()
         print(
             f"☁️  Gemini vía Vertex AI: proyecto {os.getenv('GOOGLE_CLOUD_PROJECT')} "
             f"· región {os.getenv('GOOGLE_CLOUD_LOCATION')}"
@@ -96,4 +129,4 @@ def configurar_autenticacion_gemini() -> str:
     return modo
 
 
-__all__ = ["load_model_config", "configurar_autenticacion_gemini", "MODOS_VALIDOS"]
+__all__ = ["load_model_config", "configurar_autenticacion_gemini", "verificar_adc", "MODOS_VALIDOS", "NIVELES_THINKING"]

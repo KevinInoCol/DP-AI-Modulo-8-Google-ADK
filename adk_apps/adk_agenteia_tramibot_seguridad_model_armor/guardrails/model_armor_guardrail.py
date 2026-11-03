@@ -18,9 +18,12 @@ Diferencias con el guardrail propio de la versión LangChain:
     así la web distingue un bloqueo de una respuesta normal (campo "bloqueado").
   - Si Model Armor no responde, bloquea (fail-closed), igual que antes.
 
-Autenticación: Application Default Credentials. Con GOOGLE_APPLICATION_CREDENTIALS
-en el .env se usa esa cuenta de servicio (necesita el rol Model Armor User,
-roles/modelarmor.user). En Cloud Run se usa la cuenta de servicio del servicio.
+Autenticación: Application Default Credentials, sin llaves JSON.
+  - Local:      gcloud auth application-default login (+ set-quota-project); tu
+                usuario necesita el rol Model Armor User (roles/modelarmor.user).
+  - Cloud Run:  la cuenta de servicio del servicio, con roles/modelarmor.user.
+Como el plugin es fail-closed, sin ADC bloquearía TODOS los turnos: por eso se
+comprueba al crearlo (verificar_adc).
 
 Autor: Ing. Kevin Inofuente Colque - DataPath
 """
@@ -31,6 +34,8 @@ from dotenv import load_dotenv, find_dotenv
 from google.adk.agents.callback_context import CallbackContext
 from google.adk.integrations.model_armor import ModelArmorConfig, ModelArmorPlugin
 from google.adk.models.llm_request import LlmRequest
+
+from ..model_config import verificar_adc
 
 load_dotenv(find_dotenv())
 
@@ -68,6 +73,7 @@ def crear_plugin_model_armor() -> ModelArmorPlugin:
         raise ValueError(
             "❌ Falta MODEL_ARMOR_PROJECT en el .env (proyecto de GCP con la plantilla de Model Armor)"
         )
+    verificar_adc()
     return ModelArmorPlugin(
         config=ModelArmorConfig(
             prompt_template_name=_plantilla(MODEL_ARMOR_TEMPLATE),

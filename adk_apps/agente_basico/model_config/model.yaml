@@ -9,6 +9,10 @@ llm:
   provider: gemini
   model: gemini-3.5-flash   # se puede sobrescribir con GEMINI_MODEL en el .env
   temperature: 1.0          # Gemini 3+: Google recomienda dejarla en 1.0 (valores menores pueden causar bucles o peor razonamiento)
+  # Nivel de razonamiento de Gemini 3+ (reemplaza a thinking_budget):
+  #   minimal | low | medium | high  (por defecto del modelo: high)
+  # Se puede sobrescribir con GEMINI_THINKING_LEVEL en el .env
+  thinking_level: low
   # max_output_tokens, top_p — comentados hasta que se necesiten
 
 # Cómo se autentica Gemini (API Key de AI Studio o Vertex AI) NO vive aquí:
